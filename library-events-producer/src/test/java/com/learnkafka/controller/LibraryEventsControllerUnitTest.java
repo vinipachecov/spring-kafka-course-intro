@@ -18,6 +18,7 @@ import java.net.URI;
 
 import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -48,7 +49,7 @@ public class LibraryEventsControllerUnitTest {
                 .book(book)
                 .build();
         String json  = objectMapper.writeValueAsString(libraryEvent);
-        doNothing().when(libraryEventProducer).sendlibraryEvent_Approach2(isA(LibraryEvent.class));
+        when(libraryEventProducer.sendLibraryEvent_Approach2((isA(LibraryEvent.class)))).thenReturn(null);
 //        when
         mockMvc.perform(
                 post("/v1/library-event")
