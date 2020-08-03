@@ -88,4 +88,34 @@ public class LibraryEventsControllerIntegrationTest {
         assertEquals(expectedRecord, value);
     }
 
+    @Test
+    @DisplayName("should update a LibraryEvent")
+    void putLibraryEvent() {
+        Book book = Book.builder()
+                .id(1)
+                .name("book-name")
+                .author("author")
+                .build();
+
+        LibraryEvent libraryEvent = LibraryEvent.builder()
+                .libraryEventId(123)
+                .type(LibraryEventType.UPDATE)
+                .book(book)
+                .build();
+//
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("content-type", MediaType.APPLICATION_JSON.toString());
+        HttpEntity<LibraryEvent> request = new HttpEntity<>(libraryEvent, headers);
+
+        ResponseEntity<LibraryEvent> responseEntity = restTemplate.exchange("/v1/library-event", HttpMethod.PUT, request, LibraryEvent.class);
+
+        assertEquals(HttpStatus.OK, responseEntity.getStatusCode());
+
+        ConsumerRecord<Integer, String> consumerRecord =  KafkaTestUtils.getSingleRecord(consumer, "library-events");
+        String expectedRecord = "{\"libraryEventId\":123,\"type\":\"UPDATE\",\"book\":{\"id\":1,\"name\":\"book-name\",\"author\":\"author\"}}";
+        String value = consumerRecord.value();
+
+        assertEquals(expectedRecord, value);
+    }
+
 }
