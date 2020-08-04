@@ -3,30 +3,41 @@ spring:
     active: local
 server:
   port: 8081
+
 ---
+
 spring:
   profiles: local
+  datasource:
+    url: jdbc:h2:mem:testdb
+    driverClassName: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
   kafka:
     consumer:
       bootstrap-servers: localhost:9092, localhost:9093, localhost:9094
-        key-serializer: org.apache.kafka.common.serialization.IntegerSerializer
-        value-serializer: org.apache.kafka.common.serialization.StringSerializer
-        group-id: library-events-listener-group
+      key-serializer: org.apache.kafka.common.serialization.IntegerDeserializer
+      value-serializer: org.apache.kafka.common.serialization.StringDeserializer
+      group-id: library-events-listener-group
 ---
+
 spring:
   profiles: nonprod
   kafka:
     consumer:
       bootstrap-servers: localhost:9092, localhost:9093, localhost:9094
-        key-serializer: org.apache.kafka.common.serialization.IntegerSerializer
-        value-serializer: org.apache.kafka.common.serialization.StringSerializer
-        group-id: library-events-listener-group
+      key-serializer: org.apache.kafka.common.serialization.IntegerDeserializer
+      value-serializer: org.apache.kafka.common.serialization.StringDeserializer
+      group-id: library-events-listener-group
 ---
+
 spring:
   profiles: prod
   kafka:
     consumer:
       bootstrap-servers: localhost:9092, localhost:9093, localhost:9094
-        key-serializer: org.apache.kafka.common.serialization.IntegerSerializer
-        value-serializer: org.apache.kafka.common.serialization.StringSerializer
-        group-id: library-events-listener-group
+      key-serializer: org.apache.kafka.common.serialization.IntegerDeserializer
+      value-serializer: org.apache.kafka.common.serialization.StringDeserializer
+      group-id: library-events-listener-group
