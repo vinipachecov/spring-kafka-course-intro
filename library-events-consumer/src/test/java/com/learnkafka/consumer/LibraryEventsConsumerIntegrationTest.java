@@ -1,13 +1,19 @@
 package com.learnkafka.consumer;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.learnkafka.domain.Book;
 import com.learnkafka.domain.LibraryEvent;
+import com.learnkafka.domain.LibraryEventType;
 import com.learnkafka.jpa.LibraryEventsRepository;
 import com.learnkafka.jpa.service.LibraryEventService;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.BDDMockito;
+import org.mockito.verification.VerificationMode;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.client.AutoConfigureWebClient;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -22,14 +28,16 @@ import org.springframework.kafka.test.utils.ContainerTestUtils;
 import org.springframework.test.context.TestPropertySource;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.assertj.core.api.BDDAssumptions.given;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.isA;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.*;
 
 @SpringBootTest
 @EmbeddedKafka(topics = {"library-events"},  partitions = 3)
@@ -55,6 +63,9 @@ public class LibraryEventsConsumerIntegrationTest {
 
     @Autowired
     LibraryEventsRepository libraryEventsRepository;
+
+    @Autowired
+    ObjectMapper objectMapper;
 
     /**
      * Make sure we setup the producer before we start our tests
@@ -91,4 +102,62 @@ public class LibraryEventsConsumerIntegrationTest {
         });
     }
 
+    @Test
+    void publishUpdateLibraryevent() throws JsonProcessingException, ExecutionException, InterruptedException {
+        //    given
+        String json =  "{\"libraryEventId\":null,\"type\":\"NEW\",\"book\":{\"id\":1,\"name\":\"book-name\",\"author\":\"author\"}}";
+        LibraryEvent libraryEvent = objectMapper.readValue(json, LibraryEvent.class);
+        libraryEvent.getBook().setLibraryEvent(libraryEvent);
+        //    save the new LibraryEvent
+        libraryEventsRepository.save(libraryEvent);
+        Book updatedBook = Book.builder().id(1).name("book-name").author("auitor").build();
+        libraryEvent.setType(LibraryEventType.UPDATE);
+        libraryEvent.setBook(updatedBook);
+        String updatedjson = objectMapper.writeValueAsString(libraryEvent);
+        //    publish the update libraryevent
+//       when
+        kafkaTemplate.sendDefault(libraryEvent.getLibraryEventId(), updatedjson).get();
+        CountDownLatch latch = new CountDownLatch(1);
+        latch.await(3, TimeUnit.SECONDS);
+
+//        then
+        verify(libraryEventsConsumerSpy, times(1)).onMessage(isA(ConsumerRecord.class));
+        verify(libraryEventServiceSpy, times(1)).processLibraryEvent(isA(ConsumerRecord.class));
+
+        LibraryEvent processedLibraryEvent = libraryEventsRepository.findById(libraryEvent.getLibraryEventId()).get();
+        assertEquals("book-name", processedLibraryEvent.getBook().getName());
+    }
+
+    @Test
+    @DisplayName("ntegration test for the Modify Library Event that's going to result in \"IllegalArgumentException(\"Not a valid library Event\")\"")
+    void updateLibraryEventNullId() throws InterruptedException, JsonProcessingException, ExecutionException {
+        //    given
+        String json =  "{\"libraryEventId\":null,\"type\":\"UPDATE\",\"book\":{\"id\":1,\"name\":\"book-name\",\"author\":\"author\"}}";
+        kafkaTemplate.sendDefault(json).get();
+////        when
+        CountDownLatch latch = new CountDownLatch(1);
+        latch.await(3, TimeUnit.SECONDS);
+
+        verify(libraryEventsConsumerSpy, times(1)).onMessage(isA(ConsumerRecord.class));
+        verify(libraryEventServiceSpy, times(1)).processLibraryEvent(isA(ConsumerRecord.class));
+    }
+
+    @Test
+    void publishModifyLibraryEvent_Not_A_Valid_LibraryEventId() throws JsonProcessingException, InterruptedException, ExecutionException {
+        //given
+        Integer libraryEventId = 123;
+        String json = "{\"libraryEventId\":" + libraryEventId + ",\"libraryEventType\":\"UPDATE\",\"book\":{\"bookId\":456,\"bookName\":\"Kafka Using Spring Boot\",\"bookAuthor\":\"Dilip\"}}";
+        System.out.println(json);
+        kafkaTemplate.sendDefault(libraryEventId, json).get();
+        //when
+        CountDownLatch latch = new CountDownLatch(1);
+        latch.await(3, TimeUnit.SECONDS);
+
+
+        verify(libraryEventsConsumerSpy, times(1)).onMessage(isA(ConsumerRecord.class));
+        verify(libraryEventServiceSpy, times(1)).processLibraryEvent(isA(ConsumerRecord.class));
+
+        Optional<LibraryEvent> libraryEventOptional = libraryEventsRepository.findById(libraryEventId);
+        assertFalse(libraryEventOptional.isPresent());
+    }
 }
