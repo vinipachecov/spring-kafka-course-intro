@@ -129,17 +129,22 @@ public class LibraryEventsConsumerIntegrationTest {
     }
 
     @Test
-    @DisplayName("ntegration test for the Modify Library Event that's going to result in \"IllegalArgumentException(\"Not a valid library Event\")\"")
+    @DisplayName("ntegration test for the Modify Library Event that's going to result in \"IllegalArgumentException(\"Not a valid library Event\")\" at least once" )
     void updateLibraryEventNullId() throws InterruptedException, JsonProcessingException, ExecutionException {
+        Integer libraryEventId = 123456;
         //    given
-        String json =  "{\"libraryEventId\":null,\"type\":\"UPDATE\",\"book\":{\"id\":1,\"name\":\"book-name\",\"author\":\"author\"}}";
+        String json =  "{\"libraryEventId\":" + libraryEventId +  ",\"type\":\"UPDATE\",\"book\":{\"id\":1,\"name\":\"book-name\",\"author\":\"author\"}}";
         kafkaTemplate.sendDefault(json).get();
 ////        when
         CountDownLatch latch = new CountDownLatch(1);
         latch.await(3, TimeUnit.SECONDS);
 
-        verify(libraryEventsConsumerSpy, times(1)).onMessage(isA(ConsumerRecord.class));
-        verify(libraryEventServiceSpy, times(1)).processLibraryEvent(isA(ConsumerRecord.class));
+//        Check that it was called more than once since kafka will retry!
+        verify(libraryEventsConsumerSpy, atLeast(1)).onMessage(isA(ConsumerRecord.class));
+        verify(libraryEventServiceSpy, atLeast(1)).processLibraryEvent(isA(ConsumerRecord.class));
+
+        Optional<LibraryEvent> libraryEventOptional = libraryEventsRepository.findById(libraryEventId);
+        assertFalse(libraryEventOptional.isPresent());
     }
 
     @Test
