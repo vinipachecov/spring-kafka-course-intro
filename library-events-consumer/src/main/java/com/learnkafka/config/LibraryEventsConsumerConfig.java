@@ -1,5 +1,6 @@
 package com.learnkafka.config;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.kafka.ConcurrentKafkaListenerContainerFactoryConfigurer;
 import org.springframework.boot.autoconfigure.kafka.KafkaProperties;
@@ -10,8 +11,10 @@ import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 import org.springframework.kafka.core.ConsumerFactory;
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
 
+
 @Configuration
 @EnableKafka
+@Slf4j
 public class LibraryEventsConsumerConfig {
 
     private final KafkaProperties properties;
@@ -31,6 +34,10 @@ public class LibraryEventsConsumerConfig {
 //      spawn 3 threads for consumer instances
         factory.setConcurrency(3);
 //        factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL);
+        factory.setErrorHandler((((thrownException, data) -> {
+            log.info("Exception in consumrConfig is {} and the record is {}", thrownException.getMessage(), data);
+        })));
+
         return factory;
     }
 }
