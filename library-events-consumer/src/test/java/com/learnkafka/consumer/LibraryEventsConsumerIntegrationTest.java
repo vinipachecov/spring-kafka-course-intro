@@ -178,7 +178,7 @@ public class LibraryEventsConsumerIntegrationTest {
         latch.await(3, TimeUnit.SECONDS);
 
 
-        verify(libraryEventsConsumerSpy, times(3)).onMessage(isA(ConsumerRecord.class));
-        verify(libraryEventServiceSpy, times(3)).processLibraryEvent(isA(ConsumerRecord.class));
+        verify(libraryEventsConsumerSpy, times(4)).onMessage(isA(ConsumerRecord.class));
+        verify(libraryEventServiceSpy, times(1)).handleRecovery(isA(ConsumerRecord.class));
     }
 }

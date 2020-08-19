@@ -8,6 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.RecoverableDataAccessException;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
@@ -18,6 +19,9 @@ public class LibraryEventService {
 
     @Autowired
     ObjectMapper objectMapper;
+
+    @Autowired
+    KafkaTemplate<Integer, String> kafkaTemplate;
 
     @Autowired
     private LibraryEventsRepository libraryEventsRepository;
@@ -60,5 +64,11 @@ public class LibraryEventService {
         libraryEvent.getBook().setLibraryEvent(libraryEvent);
         libraryEventsRepository.save(libraryEvent);
         log.info("Successfully persisted the library event {}", libraryEvent);
+    }
+
+    public void handleRecovery(ConsumerRecord<Integer, String> consumerRecord) {
+        Integer key = consumerRecord.key();
+        String message = consumerRecord.value();
+        kafkaTemplate.sendDefault(key, message);
     }
 }
